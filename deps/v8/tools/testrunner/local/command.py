@@ -96,6 +96,9 @@ class BaseCommand(object):
     self.verbose = verbose
     self.handle_sigterm = handle_sigterm
 
+  def _result_overrides(self, returncode):
+    pass
+
   def execute(self):
     if self.verbose:
       print('# %s' % self)
@@ -115,6 +118,7 @@ class BaseCommand(object):
 
       timer.cancel()
 
+    self._result_overrides(process)
     return output.Output(
       process.returncode,
       timeout_occured[0],
@@ -229,6 +233,34 @@ def taskkill_windows(process, verbose=False, force=True):
     logging.info(stdout.decode('utf-8', errors='ignore'))
     logging.info(stderr.decode('utf-8', errors='ignore'))
     logging.info('Return code: %d', tk.returncode)
+
+
+class IOSCommand(BaseCommand):
+
+  def _result_overrides(self, process):
+    # TODO(crbug.com/1445694): if iossim returns with code 65, force a
+    # successful exit instead.
+    if (process.returncode == 65):
+      process.returncode = 0
+
+  def _start_process(self):
+    try:
+      return subprocess.Popen(
+          args=self._get_popen_args(),
+          stdout=subprocess.PIPE,
+          stderr=subprocess.PIPE,
+          env=self._get_env(),
+          shell=True,
+          # Make the new shell create its own process group. This allows to kill
+          # all spawned processes reliably (https://crbug.com/v8/8292).
+          preexec_fn=os.setsid,
+      )
+    except Exception as e:
+      sys.stderr.write('Error executing: %s\n' % self)
+      raise e
+
+  def _to_args_list(self):
+    return self.cmd_prefix + [self.shell]
 
 
 class WindowsCommand(BaseCommand):
@@ -353,6 +385,8 @@ def setup(target_os, device):
   if target_os == 'android':
     AndroidCommand.driver = Driver.instance(device)
     Command = AndroidCommand
+  elif target_os == 'ios':
+    Command = IOSCommand
   elif target_os == 'windows':
     Command = WindowsCommand
   else:

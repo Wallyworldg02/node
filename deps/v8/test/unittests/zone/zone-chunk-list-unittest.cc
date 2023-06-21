@@ -21,10 +21,12 @@ TEST_F(ZoneChunkListTest, ForwardIterationTest) {
   Zone zone(&allocator, ZONE_NAME);
 
   ZoneChunkList<uintptr_t> zone_chunk_list(&zone);
+  EXPECT_EQ(zone_chunk_list.begin(), zone_chunk_list.end());
 
   for (size_t i = 0; i < kItemCount; ++i) {
     zone_chunk_list.push_back(static_cast<uintptr_t>(i));
   }
+  EXPECT_NE(zone_chunk_list.begin(), zone_chunk_list.end());
 
   size_t count = 0;
 
@@ -41,10 +43,12 @@ TEST_F(ZoneChunkListTest, ReverseIterationTest) {
   Zone zone(&allocator, ZONE_NAME);
 
   ZoneChunkList<uintptr_t> zone_chunk_list(&zone);
+  EXPECT_EQ(zone_chunk_list.rbegin(), zone_chunk_list.rend());
 
   for (size_t i = 0; i < kItemCount; ++i) {
     zone_chunk_list.push_back(static_cast<uintptr_t>(i));
   }
+  EXPECT_NE(zone_chunk_list.rbegin(), zone_chunk_list.rend());
 
   size_t count = 0;
 
@@ -238,7 +242,7 @@ TEST_F(ZoneChunkListTest, RewindAndIterate) {
   ZoneChunkList<int> zone_chunk_list(&zone);
 
   // Fill the list enough so that it will contain 2 chunks.
-  int chunk_size = static_cast<int>(ZoneChunkList<int>::StartMode::kSmall);
+  int chunk_size = static_cast<int>(ZoneChunkList<int>::kInitialChunkCapacity);
   for (int i = 0; i < chunk_size + 1; ++i) {
     zone_chunk_list.push_back(i);
   }
@@ -268,19 +272,6 @@ TEST_F(ZoneChunkListTest, RewindAndIterate) {
   for (size_t i = 0; i < expected.size(); ++i) {
     CHECK_EQ(expected[i], got[i]);
   }
-}
-
-TEST_F(ZoneChunkListTest, PushBackPopBackSize) {
-  // Regression test for https://bugs.chromium.org/p/v8/issues/detail?id=7489
-  AccountingAllocator allocator;
-  Zone zone(&allocator, ZONE_NAME);
-
-  ZoneChunkList<int> zone_chunk_list(&zone);
-  CHECK_EQ(size_t(0), zone_chunk_list.size());
-  zone_chunk_list.push_back(1);
-  CHECK_EQ(size_t(1), zone_chunk_list.size());
-  zone_chunk_list.pop_back();
-  CHECK_EQ(size_t(0), zone_chunk_list.size());
 }
 
 TEST_F(ZoneChunkListTest, AdvanceZeroTest) {
@@ -345,7 +336,7 @@ TEST_F(ZoneChunkListTest, FindOverChunkBoundary) {
   ZoneChunkList<int> zone_chunk_list(&zone);
 
   // Make sure we get two chunks.
-  int chunk_size = static_cast<int>(ZoneChunkList<int>::StartMode::kSmall);
+  int chunk_size = static_cast<int>(ZoneChunkList<int>::kInitialChunkCapacity);
   for (int i = 0; i < chunk_size + 1; ++i) {
     zone_chunk_list.push_back(i);
   }
